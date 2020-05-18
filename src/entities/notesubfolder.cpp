@@ -1,6 +1,9 @@
 #include "entities/notesubfolder.h"
-
 #include <utils/misc.h>
+
+#ifndef INTEGRATION_TESTS
+#include <utils/gui.h>
+#endif
 
 #include <QDebug>
 #include <QDir>
@@ -182,7 +185,14 @@ bool NoteSubFolder::rename(const QString& newName) {
         Tag::renameNoteSubFolderPathsOfLinks(oldRelativePath, newRelativePath);
 
         // rename the note subfolder
-        return dir.rename(oldPath, newPath);
+        const bool ret = QDir().rename(oldPath, newPath);
+
+        if (!ret) {
+            qCritical() << "Renaming " << oldPath << " to "
+                << newPath << " failed";
+        }
+
+        return ret;
     }
 
     return false;
@@ -528,6 +538,54 @@ int NoteSubFolder::depth() const {
     }
 
     return relativePath.split(QChar('\n')).count();
+}
+
+bool NoteSubFolder::willFolderBeIgnored(const QString &folderName,
+                                        bool showWarning) {
+    // ignore some folders
+    const QStringList ignoreFolderList{".", "..", "media", "attachments",
+                                       "trash"};
+
+    if (ignoreFolderList.contains(folderName)) {
+#ifndef INTEGRATION_TESTS
+        if (showWarning) {
+            Utils::Gui::warning(
+                Q_NULLPTR, QObject::tr("Folder will be hidden!"),
+                QObject::tr("Folder with name <b>%1</b> can't be created, "
+                            "because it's internally used by the "
+                            "application!").arg(folderName),
+                "note-subfolder-hidden-internal");
+        }
+#endif
+
+        return true;
+    }
+
+    const QSettings settings;
+    const QStringList ignoredFolderRegExpList = settings
+            .value(QStringLiteral("ignoreNoteSubFolders"),
+                   IGNORED_NOTE_SUBFOLDERS_DEFAULT)
+            .toString()
+            .split(QLatin1Char(';'));
+
+    // ignore folders by regular expression
+    if (Utils::Misc::regExpInListMatches(folderName, ignoredFolderRegExpList)) {
+#ifndef INTEGRATION_TESTS
+        if (showWarning) {
+            Utils::Gui::warning(
+                Q_NULLPTR, QObject::tr("Folder will be hidden!"),
+                QObject::tr("Folder with name <b>%1</b> can't be created, "
+                            "because it's on the list of ignored subfolders! "
+                            "You can change that in the <i>Panels settings</i>.")
+                    .arg(folderName),
+                "note-subfolder-hidden-settings");
+        }
+#endif
+
+        return true;
+    }
+
+    return false;
 }
 
 QDebug operator<<(QDebug dbg, const NoteSubFolder& noteSubFolder) {

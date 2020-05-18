@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <entities/note.h>
+
 #include <QComboBox>
 #include <QFontDialog>
 #include <QListWidget>
@@ -21,6 +23,7 @@
 #include <QPlainTextEdit>
 #include <QTextBlock>
 #include <QTreeWidgetItem>
+#include <QVBoxLayout>
 
 /*  Gui functions that can be useful */
 
@@ -60,7 +63,8 @@ QMessageBox::StandardButton showMessageBox(
     QWidget *parent, QMessageBox::Icon icon, const QString &title,
     const QString &text, const QString &identifier,
     QMessageBox::StandardButtons buttons,
-    QMessageBox::StandardButton defaultButton);
+    QMessageBox::StandardButton defaultButton,
+    QMessageBox::StandardButtons skipOverrideButtons = QMessageBox::NoButton);
 
 QMessageBox::StandardButton information(
     QWidget *parent, const QString &title, const QString &text,
@@ -69,6 +73,15 @@ QMessageBox::StandardButton information(
     QMessageBox::StandardButton defaultButton = QMessageBox::Ok);
 
 QMessageBox::StandardButton question(
+    QWidget *parent, const QString &title, const QString &text,
+    const QString &identifier = QStringLiteral("default"),
+    QMessageBox::StandardButtons buttons =
+        QMessageBox::StandardButtons(QMessageBox::Yes | QMessageBox::No),
+    QMessageBox::StandardButton defaultButton = QMessageBox::NoButton,
+    QMessageBox::StandardButtons skipOverrideButtons =
+        QMessageBox::StandardButtons(QMessageBox::No));
+
+QMessageBox::StandardButton questionNoSkipOverride(
     QWidget *parent, const QString &title, const QString &text,
     const QString &identifier = QStringLiteral("default"),
     QMessageBox::StandardButtons buttons =
@@ -109,5 +122,18 @@ bool autoFormatTableAtCursor(QPlainTextEdit *textEdit);
 void updateInterfaceFontSize(int fontSize = -1);
 
 void setComboBoxIndexByUserData(QComboBox *comboBox, const QVariant &userData);
+
+int getTabWidgetIndexByProperty(QTabWidget *tabWidget,
+                                const QString &propertyName,
+                                const QVariant &propertyValue);
+int getTabWidgetNoteId(QTabWidget *tabWidget, int index);
+Note getTabWidgetNote(QTabWidget *tabWidget, int index,
+                      bool fetchByName = false);
+void storeNoteTabs(QTabWidget *tabWidget);
+void restoreNoteTabs(QTabWidget *tabWidget, QVBoxLayout *layout);
+void setTabWidgetTabSticky(QTabWidget *tabWidget, int index, bool sticky);
+bool isTabWidgetTabSticky(QTabWidget *tabWidget, int index);
+void updateTabWidgetTabData(QTabWidget *tabWidget, int index, const Note &note);
+void reloadNoteTabs(QTabWidget *tabWidget);
 }    // namespace Gui
 }    // namespace Utils

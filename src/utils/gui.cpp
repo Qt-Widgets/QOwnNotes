@@ -15,6 +15,8 @@
 #include "gui.h"
 
 #include <libraries/qmarkdowntextedit/markdownhighlighter.h>
+#include <entities/notefolder.h>
+#include <entities/notesubfolder.h>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -242,14 +244,38 @@ QMessageBox::StandardButton Utils::Gui::information(
  * @param identifier
  * @param buttons
  * @param defaultButton
+ * @param skipOverrideButtons
  * @return
  */
 QMessageBox::StandardButton Utils::Gui::question(
     QWidget *parent, const QString &title, const QString &text,
     const QString &identifier, QMessageBox::StandardButtons buttons,
+    QMessageBox::StandardButton defaultButton,
+    QMessageBox::StandardButtons skipOverrideButtons) {
+    return showMessageBox(parent, QMessageBox::Icon::Question, title, text,
+                          identifier, buttons, defaultButton,
+                          skipOverrideButtons);
+}
+
+/**
+ * Shows a question message box with a checkbox to override the message box in
+ * the future (but no skip override buttons can be defined)
+ *
+ * @param parent
+ * @param title
+ * @param text
+ * @param identifier
+ * @param buttons
+ * @param defaultButton
+ * @return
+ */
+QMessageBox::StandardButton Utils::Gui::questionNoSkipOverride(
+    QWidget *parent, const QString &title, const QString &text,
+    const QString &identifier, QMessageBox::StandardButtons buttons,
     QMessageBox::StandardButton defaultButton) {
     return showMessageBox(parent, QMessageBox::Icon::Question, title, text,
-                          identifier, buttons, defaultButton);
+                          identifier, buttons, defaultButton,
+                          QMessageBox::NoButton);
 }
 
 /**
@@ -288,14 +314,16 @@ QMessageBox::StandardButton Utils::Gui::showMessageBox(
     QWidget *parent, QMessageBox::Icon icon, const QString &title,
     const QString &text, const QString &identifier,
     QMessageBox::StandardButtons buttons,
-    QMessageBox::StandardButton defaultButton) {
+    QMessageBox::StandardButton defaultButton,
+    QMessageBox::StandardButtons skipOverrideButtons) {
     QSettings settings;
     const QString settingsKey = "MessageBoxOverride/" + identifier;
     auto overrideButton = static_cast<QMessageBox::StandardButton>(
         settings.value(settingsKey, QMessageBox::NoButton).toInt());
 
     // check if we want to override the message box
-    if (overrideButton != QMessageBox::NoButton) {
+    if ((overrideButton != QMessageBox::NoButton) &&
+        !skipOverrideButtons.testFlag(overrideButton)) {
         return overrideButton;
     }
 
@@ -332,7 +360,7 @@ QMessageBox::StandardButton Utils::Gui::showMessageBox(
     auto result = msgBox.standardButton(msgBox.clickedButton());
 
     // store the override for the message box
-    if (checkBox->isChecked()) {
+    if (checkBox->isChecked() && !skipOverrideButtons.testFlag(result)) {
         settings.setValue(settingsKey, result);
     }
 
@@ -648,4 +676,206 @@ void Utils::Gui::setComboBoxIndexByUserData(QComboBox *comboBox,
                                             const QVariant &userData) {
     const int index = comboBox->findData(userData);
     comboBox->setCurrentIndex(index);
+}
+
+int Utils::Gui::getTabWidgetIndexByProperty(QTabWidget *tabWidget,
+                                            const QString &propertyName,
+                                            const QVariant &propertyValue) {
+    for (int i = 0; i < tabWidget->count(); i++) {
+        const auto value = tabWidget->widget(i)->property(
+                          propertyName.toLocal8Bit());
+        if (value == propertyValue) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+int Utils::Gui::getTabWidgetNoteId(QTabWidget *tabWidget, int index) {
+    QWidget *widget = tabWidget->widget(index);
+
+    if (widget == nullptr) {
+        return 0;
+    }
+
+    return widget->property("note-id").toInt();
+}
+
+Note Utils::Gui::getTabWidgetNote(QTabWidget *tabWidget, int index,
+                                  bool fetchByName) {
+    if (fetchByName) {
+        QWidget *widget = tabWidget->widget(index);
+
+        if (widget == nullptr) {
+            return Note();
+        }
+
+        const QString &noteName = widget->property("note-name").toString();
+        const QString &noteSubFolderPathData = widget->property(
+                             "note-subfolder-path-data").toString();
+        return Note::fetchByName(noteName, noteSubFolderPathData);
+    } else {
+        const int noteId = getTabWidgetNoteId(tabWidget, index);
+        return Note::fetch(noteId);
+    }
+}
+
+void Utils::Gui::storeNoteTabs(QTabWidget *tabWidget) {
+    // check if we want to store note tabs
+    const QSettings settings;
+    if (!settings.value(QStringLiteral("restoreNoteTabs"), true).toBool()) {
+        return;
+    }
+
+    QStringList noteNameList;
+    QStringList noteSubFolderPathDataList;
+    QStringList noteStickinessList;
+
+    for (int i = 0; i < tabWidget->count(); i++) {
+        const Note note = getTabWidgetNote(tabWidget, i);
+
+        if (!note.isFetched()) {
+            continue;
+        }
+
+        noteNameList << note.getName();
+        noteSubFolderPathDataList << note.getNoteSubFolder().pathData();
+
+        if (isTabWidgetTabSticky(tabWidget, i)) {
+            noteStickinessList << QString::number(i);
+        }
+    }
+
+    NoteFolder noteFolder = NoteFolder::currentNoteFolder();
+    noteFolder.setSettingsValue(QStringLiteral("NoteTabNameList"),
+                                noteNameList);
+    noteFolder.setSettingsValue(QStringLiteral("NoteTabSubFolderPathDataList"),
+                                noteSubFolderPathDataList);
+    noteFolder.setSettingsValue(QStringLiteral("NoteTabStickinessList"),
+                                noteStickinessList);
+}
+
+void Utils::Gui::restoreNoteTabs(QTabWidget *tabWidget, QVBoxLayout *layout) {
+    const QSignalBlocker blocker(tabWidget);
+    Q_UNUSED(blocker)
+
+    // remove all but the first tab
+    while (tabWidget->count() > 1) {
+        tabWidget->removeTab(1);
+    }
+
+    const QSettings settings;
+
+    // check if we want to restore note tabs
+    if (settings.value(QStringLiteral("restoreNoteTabs"), true).toBool()) {
+        NoteFolder noteFolder = NoteFolder::currentNoteFolder();
+        const QStringList noteNameList = noteFolder.settingsValue(
+            QStringLiteral("NoteTabNameList")).toStringList();
+        const QStringList noteSubFolderPathDataList = noteFolder.settingsValue(
+            QStringLiteral("NoteTabSubFolderPathDataList")).toStringList();
+        const QStringList noteStickinessList = noteFolder.settingsValue(
+            QStringLiteral("NoteTabStickinessList")).toStringList();
+        const int noteNameListCount = noteNameList.count();
+
+        // only restore if there was more than one tab and
+        // NoteTabSubFolderPathDataList has enough entries
+        if (noteNameListCount > 1 &&
+            noteSubFolderPathDataList.count() >= noteNameListCount) {
+            for (int i = 0; i < noteNameListCount; i++) {
+                const QString &noteName = noteNameList.at(i);
+                const QString &noteSubFolderPathData =
+                    noteSubFolderPathDataList.at(i);
+                const bool isSticky = noteStickinessList.contains(
+                    QString::number(i));
+                const Note note = Note::fetchByName(noteName,
+                                                    noteSubFolderPathData);
+
+                // skip if note was not found any more
+                if (!note.isFetched()) {
+                    continue;
+                }
+
+                // create a new tab if there are too few tabs
+                if ((tabWidget->count() - 1) < i) {
+                    auto *widgetPage = new QWidget();
+                    tabWidget->addTab(widgetPage, QStringLiteral(""));
+                }
+
+                // set the current tab index and the note data
+                tabWidget->setCurrentIndex(i);
+                updateTabWidgetTabData(tabWidget, i, note);
+                setTabWidgetTabSticky(tabWidget, i, isSticky);
+            }
+        }
+    }
+
+    // make sure a layout is set in the end
+    tabWidget->currentWidget()->setLayout(layout);
+}
+
+void Utils::Gui::reloadNoteTabs(QTabWidget *tabWidget) {
+//    const QSignalBlocker blocker(tabWidget);
+//    Q_UNUSED(blocker)
+//    return;
+
+    for (int i = 0; i < tabWidget->count(); i++) {
+        const Note note = getTabWidgetNote(tabWidget, i, true);
+
+        if (!note.isFetched()) {
+            continue;
+        }
+
+        updateTabWidgetTabData(tabWidget, i, note);
+    }
+}
+
+void Utils::Gui::updateTabWidgetTabData(QTabWidget *tabWidget, int index,
+                                       const Note &note) {
+    QWidget *widget = tabWidget->widget(index);
+
+    if (widget == nullptr) {
+        return;
+    }
+
+    widget->setProperty("note-id", note.getId());
+    widget->setProperty("note-name", note.getName());
+    widget->setProperty("note-subfolder-path-data",
+                        note.getNoteSubFolder().pathData());
+
+    QString text = note.getName();
+    const bool isSticky = isTabWidgetTabSticky(tabWidget, index);
+
+    if (isSticky) {
+        // https://unicode-table.com/en/search/?q=flag
+        text.prepend(QStringLiteral("\u2690 "));
+    }
+
+    tabWidget->setTabText(index, text);
+    tabWidget->setTabToolTip(index, isSticky ?
+            QObject::tr("Double-click to unstick note from tab") :
+            QObject::tr("Double-click to stick note to tab"));
+}
+
+void Utils::Gui::setTabWidgetTabSticky(QTabWidget *tabWidget, int index,
+                                       bool sticky) {
+    QWidget *widget = tabWidget->widget(index);
+
+    if (widget == nullptr) {
+        return;
+    }
+
+    widget->setProperty("sticky", sticky);
+    Note note = getTabWidgetNote(tabWidget, index);
+    updateTabWidgetTabData(tabWidget, index, note);
+}
+
+bool Utils::Gui::isTabWidgetTabSticky(QTabWidget *tabWidget, int index) {
+    QWidget *widget = tabWidget->widget(index);
+
+    if (widget == nullptr) {
+        return false;
+    }
+
+    return widget->property("sticky").toBool();
 }

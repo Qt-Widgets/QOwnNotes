@@ -6,6 +6,7 @@ Important Shortcuts
 ### In the main window
 
 - <kbd>Ctrl</kbd> + <kbd>N</kbd> creates a new note with the current date and time in the name
+- <kbd>Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>N</kbd> creates a new note in a new tab
 - <kbd>Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>F</kbd> lets you search for notes (in the name of the note and its content)
 - <kbd>Alt</kbd> + <kbd>F</kbd> lets you search for notes in all tags / subfolders
 - <kbd>Alt</kbd> + <kbd>⇧</kbd> + <kbd>P</kbd> switches to the previous workspace
@@ -21,6 +22,9 @@ Important Shortcuts
     - alternate shortcut is <kbd>Ctrl</kbd> + <kbd>PgUp</kbd>
 - <kbd>Alt</kbd> + <kbd>Down</kbd> jumps to the next visible note
     - alternate shortcut is <kbd>Ctrl</kbd> + <kbd>PgDown</kbd>
+- <kbd>Alt</kbd> + <kbd>PgUp</kbd> jumps to the previous note tab
+- <kbd>Alt</kbd> + <kbd>PgDn</kbd> jumps to the next note tab
+- <kbd>Ctrl</kbd> + <kbd>W</kbd> closes the current note tab
 - <kbd>Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>D</kbd> toggles the distraction free mode
     - you can also close it with <kbd>Esc</kbd>
 - <kbd>Ctrl</kbd> + <kbd>P</kbd> prints the current note as text
@@ -118,6 +122,7 @@ Important Shortcuts
 ### In the main window
 
 - <kbd>⌘</kbd> + <kbd>N</kbd> creates a new note with the current date and time in the name
+- <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>N</kbd> creates a new note in a new tab
 - <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>F</kbd> lets you search for notes (in the name of the note and its content)
 - <kbd>Ctrl</kbd> + <kbd>F</kbd> lets you search for notes in all tags / subfolders
 - <kbd>Ctrl</kbd> + <kbd>⇧</kbd> + <kbd>P</kbd> switches to the previous workspace
@@ -133,6 +138,9 @@ Important Shortcuts
     - alternate shortcut is <kbd>⌘</kbd> + <kbd>PgUp</kbd>
 - <kbd>Ctrl</kbd> + <kbd>Down</kbd> jumps to the next visible note
     - alternate shortcut is <kbd>⌘</kbd> + <kbd>PgDown</kbd>
+- <kbd>Alt</kbd> + <kbd>PgUp</kbd> jumps to the previous note tab
+- <kbd>Alt</kbd> + <kbd>PgDn</kbd> jumps to the next note tab
+- <kbd>⌘</kbd> + <kbd>W</kbd> closes the current note tab
 - <kbd>⌘</kbd> + <kbd>⇧</kbd> + <kbd>D</kbd> toggles the distraction free mode
     - you can also close it with <kbd>Esc</kbd>
 - <kbd>⌘</kbd> + <kbd>P</kbd> prints the current note as text

@@ -77,6 +77,11 @@ float NoteHistoryItem::getRelativeScrollBarPosition() const {
  * @param textEdit
  */
 void NoteHistoryItem::restoreTextEditPosition(QPlainTextEdit *textEdit) const {
+    // don't jump if this is no valid NoteHistoryItem
+    if (isValid()) {
+        return;
+    }
+
     // set the cursor position
     QTextCursor c = textEdit->textCursor();
     c.setPosition(_cursorPosition);
@@ -86,6 +91,10 @@ void NoteHistoryItem::restoreTextEditPosition(QPlainTextEdit *textEdit) const {
     QScrollBar *scrollBar = textEdit->verticalScrollBar();
     scrollBar->setSliderPosition(
         static_cast<int>(scrollBar->maximum() * _relativeScrollBarPosition));
+}
+
+bool NoteHistoryItem::isValid() const {
+    return _noteName.isEmpty();
 }
 
 bool NoteHistoryItem::isNoteValid() const {
@@ -398,6 +407,10 @@ void NoteHistory::restoreForCurrentNoteFolder() {
     if (newCurrentIndex > 0 && newCurrentIndex <= maxIndex) {
         currentIndex = newCurrentIndex;
     }
+
+    // also set the current history item so it can be use to restore the current
+    // note after switching note folders
+    currentHistoryItem = noteHistory->at(currentIndex);
 }
 
 QDebug operator<<(QDebug dbg, const NoteHistory &history) {

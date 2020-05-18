@@ -14,7 +14,7 @@ class Tag {
         AllUntaggedNotesId = -2,
     };
 
-    explicit Tag();
+    Tag() noexcept;
 
     bool operator==(const Tag &tag) const;
 
@@ -28,7 +28,7 @@ class Tag {
 
     bool exists() const;
 
-    bool fillFromQuery(const QSqlQuery &query);
+    Tag fillFromQuery(const QSqlQuery &query);
 
     bool remove() const;
 
@@ -50,10 +50,12 @@ class Tag {
 
     bool removeLinkToNote(const Note &note) const;
 
-    QStringList fetchAllLinkedNoteFileNames(const bool fromAllSubfolders) const;
+    QVector<int> fetchAllLinkedNoteIds(const bool fromAllSubfolders,
+                                       const bool recursive = true) const;
 
-    QStringList fetchAllLinkedNoteFileNamesForFolder(
-        const NoteSubFolder &noteSubFolder, bool fromAllSubfolders) const;
+    QVector<int> fetchAllLinkedNoteIdsForFolder(
+        const NoteSubFolder &noteSubFolder, bool fromAllSubfolders,
+        const bool recursive = true) const;
 
     QList<Note> fetchAllLinkedNotes() const;
 
@@ -62,7 +64,7 @@ class Tag {
     int countLinkedNoteFileNames(const bool fromAllSubfolder,
                                  const bool recursive) const;
 
-    int countLinkedNoteFileNamesForNoteFolder(
+    int countLinkedNoteFileNamesForNoteSubFolder(
         const NoteSubFolder &noteSubFolder, const bool recursive) const;
 
     int getParentId() const;
@@ -99,7 +101,8 @@ class Tag {
     static bool removeAllLinksToNote(const Note &note);
 
     static bool renameNoteFileNamesOfLinks(const QString &oldFileName,
-                                           const QString &newFileName);
+                                           const QString &newFileName,
+                                           const NoteSubFolder &noteSubFolder);
 
     static bool renameNoteSubFolderPathsOfLinks(const QString &oldPath,
                                                 const QString &newPath);
@@ -131,9 +134,13 @@ class Tag {
 
     static QStringList fetchAllNamesOfNote(const Note &note);
 
+    static QSet<int> fetchAllIdsByNote(const Note &note);
+
     static QStringList searchAllNamesByName(const QString &name);
 
     static QList<Tag> fetchRecursivelyByParentId(const int parentId);
+
+    QStringList getParentTagNames();
 
     static bool isTaggingShowNotesRecursively();
 
@@ -141,12 +148,15 @@ class Tag {
 
     static bool mergeFromDatabase(QSqlDatabase &db);
 
+    static Tag getTagByNameBreadcrumbList(const QStringList &nameList,
+                                          bool createMissing);
+
    protected:
-    int id;
-    int priority;
-    int parentId;
+    int _id;
+    int _parentId;
+    int _priority;
     QColor _color;
-    QString name;
+    QString _name;
 
     QString colorFieldName() const;
 

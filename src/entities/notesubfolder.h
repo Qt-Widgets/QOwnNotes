@@ -5,7 +5,7 @@
 #include <QDir>
 #include <QSqlQuery>
 
-// note sub-folders that should be ignored by default
+// note subfolders that should be ignored by default
 // regular expression, separated by ";"
 #define IGNORED_NOTE_SUBFOLDERS_DEFAULT "^\\."
 
@@ -98,6 +98,9 @@ class NoteSubFolder {
     static bool isNoteSubfoldersPanelShowNotesRecursively();
 
     int depth() const;
+
+    static bool willFolderBeIgnored(const QString& folderName,
+                                    bool showWarning = false);
 
    protected:
     int id;

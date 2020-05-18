@@ -1,6 +1,8 @@
 #pragma once
 
+#include <api/tagapi.h>
 #include <entities/script.h>
+#include <entities/tag.h>
 
 #include <QMap>
 #include <QMessageBox>
@@ -36,6 +38,10 @@ class ScriptingService : public QObject {
     QVariant callNoteTaggingHook(const Note &note, const QString &action,
                                  const QString &tagName = QString(),
                                  const QString &newTagName = QString());
+    QVariant callNoteTaggingByObjectHook(const Note &note,
+                                         const QString &action,
+                                         const Tag &tag = Tag(),
+                                         const QString &newTagName = QString());
     bool noteTaggingHookExists() const;
     bool handleNoteNameHookExists() const;
     bool methodExists(const QString &methodName) const;
@@ -128,7 +134,12 @@ class ScriptingService : public QObject {
                                bool decrypt = false);
     void callHandleNoteOpenedHook(Note *note);
     QString callHandleNoteNameHook(Note *note);
-    void callHandleNoteDoubleClickedHook(Note *note);
+    bool callHandleNoteDoubleClickedHook(Note *note);
+    bool callHandleWebsocketRawDataHook(const QString &requestType,
+                                        const QString &pageUrl,
+                                        const QString &pageTitle,
+                                        const QString &rawData,
+                                        const QString &screenshotDataUrl);
     QList<QVariant> getSettingsVariables(int scriptId);
     Q_INVOKABLE QString toNativeDirSeparators(const QString &path);
     Q_INVOKABLE QString fromNativeDirSeparators(const QString &path);
@@ -161,12 +172,18 @@ class ScriptingService : public QObject {
 
     Q_INVOKABLE QStringList searchTagsByName(const QString &name) const;
 
+    Q_INVOKABLE TagApi *getTagByNameBreadcrumbList(
+        const QStringList &nameList, bool createMissing = true) const;
+
     Q_INVOKABLE void regenerateNotePreview() const;
 
     Q_INVOKABLE QList<int> selectedNotesIds() const;
 
     Q_INVOKABLE bool writeToFile(const QString &filePath,
-                                 const QString &data) const;
+                                 const QString &data,
+                                 const bool createParentDirs = false) const;
+    Q_INVOKABLE QString readFromFile(const QString &filePath) const;
+    Q_INVOKABLE bool fileExists(QString &filePath) const;
 
     Q_INVOKABLE QVector<int> fetchNoteIdsByNoteTextPart(
         const QString &text) const;

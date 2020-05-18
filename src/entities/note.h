@@ -4,13 +4,13 @@
 #include <utils/misc.h>
 
 #include <QDateTime>
-#include <QFile>
-#include <QRegularExpression>
-#include <QSqlQuery>
-#include <QUrl>
 
 class Bookmark;
 class NoteSubFolder;
+class QRegularExpression;
+class QFile;
+class QUrl;
+class QSqlQuery;
 
 #define NOTE_TEXT_ENCRYPTION_PRE_STRING "<!-- BEGIN ENCRYPTED TEXT --"
 #define NOTE_TEXT_ENCRYPTION_POST_STRING "-- END ENCRYPTED TEXT -->"
@@ -53,13 +53,20 @@ class Note {
     static Note fetchByFileName(const QString &fileName,
                                 int noteSubFolderId = -1);
 
+    static Note fetchByFileName(const QString &fileName,
+                                const QString &noteSubFolderPathData);
+
     static Note fetchByName(const QString &name, int noteSubFolderId = -1);
+
+    static Note fetchByName(const QString &name,
+        const QString &noteSubFolderPathData,
+        const QString& pathDataSeparator = QStringLiteral("\n"));
 
     static QVector<Note> fetchAll(int limit = -1);
 
     static QVector<Note> fetchAllNotTagged(int activeNoteSubFolderId);
 
-    static QStringList fetchAllNotTaggedNames();
+    static QVector<int> fetchAllNotTaggedIds();
 
     static int countAllNotTagged(int activeNoteSubFolderId = -1);
 
@@ -113,9 +120,11 @@ class Note {
 
     bool exists() const;
 
+    static bool noteIdExists(int id);
+
     bool refetch();
 
-    void fillFromQuery(const QSqlQuery &query);
+    Note fillFromQuery(const QSqlQuery &query);
 
     bool fillByFileName(const QString &fileName, int noteSubFolderId = -1);
 
@@ -333,25 +342,25 @@ class Note {
     static QString urlDecodeNoteUrl(QString url);
 
    protected:
-    QString name;
-    QString fileName;
+    QString _name;
+    QString _fileName;
     QString _noteTextHtml;
     QString _noteTextHtmlConversionHash;
-    QString noteText;
-    QString decryptedNoteText;
-    QString cryptoPassword;
-    QString shareUrl;
-    QDateTime fileCreated;
-    QDateTime fileLastModified;
-    QDateTime created;
-    QDateTime modified;
-    qint64 fileSize;
-    qint64 cryptoKey;
-    int id;
-    int noteSubFolderId;
-    int shareId;
-    unsigned int sharePermissions;
-    bool hasDirtyData;
+    QString _noteText;
+    QString _decryptedNoteText;
+    QString _cryptoPassword;
+    QString _shareUrl;
+    QDateTime _fileCreated;
+    QDateTime _fileLastModified;
+    QDateTime _created;
+    QDateTime _modified;
+    qint64 _fileSize;
+    qint64 _cryptoKey;
+    int _id;
+    int _noteSubFolderId;
+    int _shareId;
+    unsigned int _sharePermissions;
+    bool _hasDirtyData;
 
     QRegularExpression getEncryptedNoteTextRegularExpression() const;
     QString getEncryptedNoteText() const;

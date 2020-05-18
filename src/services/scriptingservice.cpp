@@ -389,7 +389,7 @@ QString ScriptingService::callInsertMediaHook(QFile *file,
  * @param action can be "add", "remove", "rename" or "list"
  * @param tagName tag name to be added, removed or renamed
  * @param newTagName tag name to be renamed to if action = "rename"
- * @return QString or QStringList (if action = "list") inside a QVariant
+ * @return note text QString or QStringList of tag names (if action = "list") inside a QVariant
  */
 QVariant ScriptingService::callNoteTaggingHook(const Note &note,
                                                const QString &action,
@@ -425,12 +425,60 @@ QVariant ScriptingService::callNoteTaggingHook(const Note &note,
 }
 
 /**
- * Checks if a noteTaggingHook function exists in a script
+ * Calls the noteTaggingByObjectHook function for all script components
+ * This function is called when tags are added to, removed from or renamed in
+ * notes or the tags of a note should be listed
+ *
+ * @param note
+ * @param action can be "add", "remove", "rename" or "list"
+ * @param tag to be added, removed or renamed
+ * @param newTagName tag name to be renamed to if action = "rename"
+ * @return note text QString or QStringList of tag ids (if action = "list") inside a QVariant
+ */
+QVariant ScriptingService::callNoteTaggingByObjectHook(
+    const Note &note, const QString &action, const Tag &tag,
+    const QString &newTagName) {
+    QMapIterator<int, ScriptComponent> i(_scriptComponents);
+    auto *noteApi = NoteApi::fromNote(note);
+    auto *tagApi = TagApi::fromTag(tag);
+
+    while (i.hasNext()) {
+        i.next();
+        ScriptComponent scriptComponent = i.value();
+        QVariant result;
+
+        if (methodExistsForObject(
+                scriptComponent.object,
+                QStringLiteral(
+                    "noteTaggingByObjectHook(QVariant,QVariant,QVariant,QVariant)"))) {
+            QMetaObject::invokeMethod(
+                scriptComponent.object, "noteTaggingByObjectHook",
+                Q_RETURN_ARG(QVariant, result),
+                Q_ARG(QVariant,
+                      QVariant::fromValue(static_cast<QObject *>(noteApi))),
+                Q_ARG(QVariant, action),
+                Q_ARG(QVariant,
+                      QVariant::fromValue(static_cast<QObject *>(tagApi))),
+                Q_ARG(QVariant, newTagName));
+
+            if (!result.isNull()) {
+                return result;
+            }
+        }
+    }
+
+    return QVariant();
+}
+
+/**
+ * Checks if a noteTaggingHook or noteTaggingByObjectHook function exists in a script
  * @return true if a function was found
  */
 bool ScriptingService::noteTaggingHookExists() const {
     return methodExists(
-        QStringLiteral("noteTaggingHook(QVariant,QVariant,QVariant,QVariant)"));
+        QStringLiteral("noteTaggingHook(QVariant,QVariant,QVariant,QVariant)")) ||
+        methodExists(QStringLiteral(
+               "noteTaggingByObjectHook(QVariant,QVariant,QVariant,QVariant)"));
 }
 
 /**
@@ -815,9 +863,12 @@ QString ScriptingService::callEncryptionHook(const QString &text,
 
 /**
  * Calls the noteDoubleClickedHook function for all script components
+ *
+ * Returns true if hook was found
  */
-void ScriptingService::callHandleNoteDoubleClickedHook(Note *note) {
+bool ScriptingService::callHandleNoteDoubleClickedHook(Note *note) {
     QMapIterator<int, ScriptComponent> i(_scriptComponents);
+    bool hookFound = false;
 
     while (i.hasNext()) {
         i.next();
@@ -828,6 +879,7 @@ void ScriptingService::callHandleNoteDoubleClickedHook(Note *note) {
                 object, QStringLiteral("noteDoubleClickedHook(QVariant)"))) {
             auto *noteApi = new NoteApi();
             noteApi->fetch(note->getId());
+            hookFound = true;
 
             QMetaObject::invokeMethod(
                 object, "noteDoubleClickedHook",
@@ -835,7 +887,59 @@ void ScriptingService::callHandleNoteDoubleClickedHook(Note *note) {
                       QVariant::fromValue(static_cast<QObject *>(noteApi))));
         }
     }
+
+    return hookFound;
 }
+
+/**
+ * Calls the websocketRawDataHook function for all script components
+ *
+ * This hook is called when data is sent from the QOwnNotes Web Companion
+ * browser extension via the web browser's context menu
+ *
+ * @param requestType can be "page" or "selection"
+ * @param pageUrl the url of the webpage where the request was made
+ * @param pageTitle the page title of the webpage where the request was made
+ * @param rawData the data that was transmitted, html for requestType "page" or plain text for requestType "selection"
+ * @param screenshotDataUrl the data url of the screenshot if the webpage where the request was made
+ * @return true if data was handled by a hook
+ */
+bool ScriptingService::callHandleWebsocketRawDataHook(
+    const QString &requestType, const QString &pageUrl,
+    const QString &pageTitle, const QString &rawData,
+    const QString &screenshotDataUrl) {
+    QMapIterator<int, ScriptComponent> i(_scriptComponents);
+
+    while (i.hasNext()) {
+        i.next();
+        ScriptComponent scriptComponent = i.value();
+        QObject *object = scriptComponent.object;
+
+        if (methodExistsForObject(object, QStringLiteral(
+            "websocketRawDataHook(QVariant,QVariant,QVariant,QVariant,"
+                                              "QVariant)"))) {
+            QVariant result;
+
+            QMetaObject::invokeMethod(
+                object, "websocketRawDataHook",
+                Q_RETURN_ARG(QVariant, result),
+                Q_ARG(QVariant, requestType),
+                Q_ARG(QVariant, pageUrl),
+                Q_ARG(QVariant, pageTitle),
+                Q_ARG(QVariant, rawData),
+                Q_ARG(QVariant, screenshotDataUrl)
+            );
+
+            // if data was handled by hook return true
+            if (result.toBool()) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 /**
  * QML wrapper to start a detached process
  *
@@ -1893,17 +1997,45 @@ QStringList ScriptingService::searchTagsByName(const QString &name) const {
 }
 
 /**
+ * Fetches or creates a tag by its "breadcrumb list" of tag names
+ * Element nameList[0] would be highest in the tree (with parentId: 0)
+ *
+ * @param nameList
+ * @param createMissing {bool} if true (default) all missing tags will be created
+ * @return TagApi object of deepest tag of the name breadcrumb list
+ */
+TagApi *ScriptingService::getTagByNameBreadcrumbList(
+    const QStringList &nameList, bool createMissing) const {
+    MetricsService::instance()->sendVisitIfEnabled(
+        QStringLiteral("scripting/") % QString(__func__));
+
+    Tag tag = Tag::getTagByNameBreadcrumbList(nameList, createMissing);
+    auto *tagApi = TagApi::fromTag(tag);
+
+    return tagApi;
+}
+
+/**
  * Writes a text to a file
  *
- * @param filePath
- * @param data
+ * @param filePath {QString}
+ * @param data {QString}
+ * @param createParentDirs {bool} optional (default: false)
  * @return
  */
 bool ScriptingService::writeToFile(const QString &filePath,
-                                   const QString &data) const {
+                                   const QString &data,
+                                   const bool createParentDirs) const {
     if (filePath.isEmpty()) return false;
 
     QFile file(filePath);
+
+    if(createParentDirs) {
+        QFileInfo fileInfo(file);
+        QDir dir = fileInfo.dir();
+        if(!dir.mkpath(dir.path())) return false;
+    }
+
     if (!file.open(QFile::WriteOnly | QFile::Truncate)) return false;
 
     QTextStream out(&file);
@@ -1911,6 +2043,43 @@ bool ScriptingService::writeToFile(const QString &filePath,
     out << data;
     file.close();
     return true;
+}
+
+/**
+ * Read text from a file
+ *
+ * @param filePath
+ * @return the file data or null if the file does not exist
+ */
+QString ScriptingService::readFromFile(const QString &filePath) const {
+    if (filePath.isEmpty()){
+        return QString();
+    }
+    QFile file(filePath);
+
+    if (!file.open(QFile::ReadOnly)){
+        return QString();
+    }
+
+    QTextStream in(&file);
+    in.setCodec("UTF-8");
+    QString data = in.readAll();
+    file.close();
+    return data;
+}
+
+
+/**
+ * Check if a file exists
+ * @param filePath
+ * @return
+ */
+bool ScriptingService::fileExists(QString &filePath) const {
+    if (filePath.isEmpty()){
+        return false;
+    }
+    QFile file(filePath);
+    return file.exists();
 }
 
 /**

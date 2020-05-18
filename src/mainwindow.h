@@ -15,6 +15,7 @@
 #pragma once
 
 #include <entities/note.h>
+#include <libraries/qhotkey/QHotkey/qhotkey.h>
 #include <widgets/logwidget.h>
 
 #include <QFileSystemWatcher>
@@ -165,7 +166,7 @@ class MainWindow : public QMainWindow {
     Q_INVOKABLE void reloadNoteSubFolderTree();
 
     Q_INVOKABLE void buildNotesIndexAndLoadNoteDirectoryList(
-        bool forceBuild = false, bool forceLoad = false);
+        bool forceBuild = false, bool forceLoad = false, bool reloadTabs = true);
 
     QVector<Note> selectedNotes();
 
@@ -175,13 +176,15 @@ class MainWindow : public QMainWindow {
 
     Q_INVOKABLE void focusNoteTextEdit();
 
+    Q_INVOKABLE bool createNewNoteSubFolder(QString folderName = QString());
+
     QString getLogText();
 
     void turnOnDebugLogging();
 
     void openIssueAssistantDialog();
 
-    void insertHtml(QString html);
+    Q_INVOKABLE void insertHtmlAsMarkdownIntoCurrentNote(QString html);
 
     void resetBrokenTagNotesLinkFlag();
 
@@ -625,7 +628,27 @@ class MainWindow : public QMainWindow {
 
     void on_actionEditorWidthCustom_triggered();
 
-   private:
+    void on_actionShow_Hide_application_triggered();
+
+    void on_noteEditTabWidget_currentChanged(int index);
+
+    void on_noteEditTabWidget_tabCloseRequested(int index);
+
+    void openCurrentNoteInTab();
+
+    void on_actionPrevious_note_tab_triggered();
+
+    void on_actionNext_note_tab_triggered();
+
+    void on_actionClose_current_note_tab_triggered();
+
+    void on_actionNew_note_in_new_tab_triggered();
+
+    void on_noteEditTabWidget_tabBarDoubleClicked(int index);
+
+    void on_actionToggle_note_stickiness_of_current_tab_triggered();
+
+private:
     Ui::MainWindow *ui;
     QString notesPath;
     QFileSystemWatcher noteDirectoryWatcher;
@@ -693,6 +716,8 @@ class MainWindow : public QMainWindow {
     QWidget *_logDockTitleBarWidget;
     QWidget *_scriptingDockTitleBarWidget;
     QComboBox *_workspaceComboBox;
+    QFrame *_noteFolderDockWidgetFrame;
+    bool _useNoteFolderButtons;
     bool _noteFolderDockWidgetWasVisible;
     bool _noteSubFolderDockWidgetVisible;
     bool _closeEventWasFired;
@@ -722,6 +747,8 @@ class MainWindow : public QMainWindow {
     const QIcon _noteIcon = QIcon::fromTheme(
         QStringLiteral("text-x-generic"),
         QIcon(":icons/breeze-qownnotes/16x16/text-x-generic.svg"));
+    QList<QHotkey *> _globalShortcuts;
+    int _lastNoteId = 0;
 
     void createSystemTrayIcon();
 
@@ -894,8 +921,6 @@ class MainWindow : public QMainWindow {
 
     void removeSelectedNoteSubFolders(QTreeWidget *treeWidget);
 
-    bool createNewNoteSubFolder(QString folderName = QString());
-
     QTreeWidgetItem *findNoteInNoteTreeWidget(const Note &note);
 
     void jumpToNoteOrCreateNew(bool disableLoadNoteDirectoryList = false);
@@ -995,16 +1020,16 @@ class MainWindow : public QMainWindow {
 
     void selectAllNotesInTagTreeWidget() const;
 
-    void handleScriptingNoteTagging(Note note, const QString &tagName,
+    void handleScriptingNoteTagging(Note note, const Tag &tag,
                                     bool doRemove = false,
                                     bool triggerPostMethods = true);
 
     void handleScriptingNotesTagUpdating();
 
-    void handleScriptingNotesTagRenaming(const QString &oldTagName,
+    void handleScriptingNotesTagRenaming(const Tag &tag,
                                          const QString &newTagName);
 
-    void handleScriptingNotesTagRemoving(const QString &tagName,
+    void handleScriptingNotesTagRemoving(const Tag &tag,
                                          bool forBulkOperation = false);
 
     void directoryWatcherWorkaround(bool isNotesDirectoryWasModifiedDisabled,
@@ -1058,4 +1083,12 @@ class MainWindow : public QMainWindow {
 
     void noteTextEditTextWasUpdated();
     void removeNoteFromNoteTreeWidget(Note &note) const;
+    void initGlobalKeyboardShortcuts();
+    void clearNoteDirectoryWatcher();
+    void resizeTagTreeWidgetColumnToContents() const;
+    void resizeNoteSubFolderTreeWidgetColumnToContents() const;
+    void updateCurrentTabData(const Note &note) const;
+    bool jumpToTab(const Note &note) const;
+    void closeOrphanedTabs() const;
+    void removeNoteTab(int index) const;
 };

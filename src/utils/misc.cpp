@@ -155,9 +155,11 @@ void Utils::Misc::openFolderSelect(const QString &absolutePath) {
                 QStringLiteral("nautilus"),
                 QStringList{"--no-desktop", QDir::toNativeSeparators(path)});
         } else if (output == QStringLiteral("caja-folder-handler.desktop")) {
+            const QDir dir = QFileInfo(path).absoluteDir();
+            const QString absDir = dir.absolutePath();
             proc.startDetached(
                 QStringLiteral("caja"),
-                QStringList{"--no-desktop", QDir::toNativeSeparators(path)});
+                QStringList{"--no-desktop", QDir::toNativeSeparators(absDir)});
         } else if (output == QStringLiteral("nemo.desktop")) {
             proc.startDetached(
                 QStringLiteral("nemo"),
@@ -1983,4 +1985,18 @@ QString Utils::Misc::generateRandomString(int length) {
     }
 
     return randomString;
+}
+
+QString Utils::Misc::makeFileNameRandom(const QString &fileName,
+                                        const QString &overrideSuffix) {
+    const QFileInfo fileInfo(fileName);
+
+    QString baseName = fileInfo.baseName().remove(
+        QRegularExpression(QStringLiteral(R"([^\w\d\-_ ])"))).replace(
+                               QChar(' '), QChar('-'));
+    baseName.truncate(32);
+
+    // find a more random name for the file
+    return baseName + QChar('-') + QString::number(qrand()) + QChar('.') +
+           (overrideSuffix.isEmpty() ? fileInfo.suffix() : overrideSuffix);
 }

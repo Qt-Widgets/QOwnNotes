@@ -26,6 +26,10 @@ You may want to take a look at the example
 or
 [execute-command-after-note-update.qml](https://github.com/pbek/QOwnNotes/blob/develop/docs/content/scripting/examples/execute-command-after-note-update.qml).
 
+!!! tip
+    You can also assign local and global shortcuts to your custom actions
+    in the *Shortcuts settings*.
+
 Starting an external program and wait for the output
 ----------------------------------------------------
 
@@ -568,6 +572,31 @@ Tag the current note
 You might want to look at the custom action `favoriteNote` in the
 example
 [favorite-note.qml](https://github.com/pbek/QOwnNotes/blob/develop/docs/content/scripting/examples/favorite-note.qml).
+
+Create or fetch a tag by its name breadcrumb list
+-------------------------------------------------
+
+!!! help "Method call and parameters"
+    ```cpp
+    /**
+     * Fetches or creates a tag by its "breadcrumb list" of tag names
+     * Element nameList[0] would be highest in the tree (with parentId: 0)
+     *
+     * @param nameList
+     * @param createMissing {bool} if true (default) all missing tags will be created
+     * @return TagApi object of deepest tag of the name breadcrumb list
+     */
+    TagApi *ScriptingService::getTagByNameBreadcrumbList(
+        const QStringList &nameList, bool createMissing);
+    ```
+
+!!! example
+    ```js
+    // creates all tags until the 3rd level and returns the tag object for
+    // tag "level3", which would look like that in the tag tree:
+    // level1 > level2 > level3
+    var tag = script.getTagByNameBreadcrumbList(["level1", "level2", "level3"]);
+    ```
 
 Search for tags by name
 -----------------------
@@ -1299,6 +1328,48 @@ Opening an input dialog with a line edit
     script.log(result);
     ```
 
+Checking if a file exists
+-------------------------
+
+!!! help "Method call and parameters"
+    ```cpp
+    /**
+     * Check if a file exists
+     * @param filePath
+     * @return
+     */
+    bool ScriptingService::fileExists(QString &filePath);
+    ```
+
+!!! example
+    ```js
+    var result = script.fileExists(filePath);
+    script.log(result);
+    ```
+
+Reading text from a file
+----------------------
+
+!!! help "Method call and parameters"
+    ```cpp
+    /**
+     * Read text from a file
+     *
+     * @param filePath
+     * @return the file data or null if the file does not exist
+     */
+    QString ScriptingService::readFromFile(const QString &filePath)
+    ```
+
+!!! example
+    ```js
+    if(script.fileExists(filePath)){
+        var data = script.readFromFile(filePath);
+        script.log(data);
+    }
+    ```
+
+
 Writing text to a file
 ----------------------
 
@@ -1307,16 +1378,17 @@ Writing text to a file
     /**
      * Writes a text to a file
      *
-     * @param filePath
-     * @param data
+     * @param filePath {QString}
+     * @param data {QString}
+     * @param createParentDirs {bool} optional (default: false)
      * @return
      */
-    bool ScriptingService::writeToFile(const QString &filePath, const QString &data);
+    bool ScriptingService::writeToFile(const QString &filePath, const QString &data, bool createParentDirs);
     ```
 
 !!! example
     ```js
-    var result = script.writeToFile(filePath, html);;
+    var result = script.writeToFile(filePath, html);
     script.log(result);
     ```
 

@@ -20,10 +20,13 @@ QOwnNotesMarkdownTextEdit::QOwnNotesMarkdownTextEdit(QWidget *parent)
     : QMarkdownTextEdit(parent, false) {
     mainWindow = Q_NULLPTR;
 
-    _highlighter = new QOwnNotesMarkdownHighlighter(document());
+    _highlighter = nullptr;
+    if (parent->objectName() != QStringLiteral("LogWidget")) {
+        _highlighter = new QOwnNotesMarkdownHighlighter(document());
 
-    setStyles();
-    updateSettings();
+        setStyles();
+        updateSettings();
+    }
 
     connect(this, &QOwnNotesMarkdownTextEdit::cursorPositionChanged, this,
             &QOwnNotesMarkdownTextEdit::highlightCurrentLine);
@@ -43,11 +46,13 @@ QOwnNotesMarkdownTextEdit::QOwnNotesMarkdownTextEdit(QWidget *parent)
     }
 
     // set the highlighting options
-    _highlighter->setHighlightingOptions(options);
+    if (_highlighter) {
+        _highlighter->setHighlightingOptions(options);
 
-    // re-initialize the highlighting rules if we are using some options
-    if (options != MarkdownHighlighter::HighlightingOption::None) {
-        _highlighter->initHighlightingRules();
+         // re-initialize the highlighting rules if we are using some options
+        if (options != MarkdownHighlighter::HighlightingOption::None) {
+         _highlighter->initHighlightingRules();
+        }
     }
 }
 
@@ -699,11 +704,10 @@ bool QOwnNotesMarkdownTextEdit::eventFilter(QObject *obj, QEvent *event) {
                 if ((keyEvent->key() < 128 || keys.contains(keyEvent->key())) &&
                     keyEvent->modifiers().testFlag(Qt::NoModifier) &&
                     isReadOnly()) {
-                    if (Utils::Gui::question(
+                    if (Utils::Gui::questionNoSkipOverride(
                             this, tr("Note editing disabled"),
                             tr("Note editing is currently disabled, do you "
-                               "want to "
-                               "allow again?"),
+                               "want to allow it again?"),
                             QStringLiteral("readonly-mode-allow")) ==
                         QMessageBox::Yes) {
                         if (mainWindow != Q_NULLPTR) {
